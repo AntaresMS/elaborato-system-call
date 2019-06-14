@@ -1,56 +1,53 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "errExit.h"
-
-#define MAX_SZ 30
-
-struct Request{
-	char username[MAX_SZ];
-	char service[MAX_SZ];
-};
-
-struct Response{
-	int key;
-};
+#include "../inc/functions.h"
+#include "../inc/errExit.h"
 
 int main (int argc, char *argv[]) {
-	int choice;
 	struct Request req;
-	struct Response resp;
+
+
+    // ===== INTERFACCIA UTENTE ===== //
 
     printf("Hi, I'm ClientReq program!\n\n");
 
-    printf("Please choose between these available services:\n");
-    printf("[1] invia\t[2] salva\t[3] stampa\n");
+    printf("Please provide username and service:\n");
 
-    do{
-    	scanf("%i", &choice);
-    	if(choice < 1 || choice > 3){
-    		printf("Invalid option, try again\n");
-    	}
-    }while(choice < 1 || choice > 3);
-
-    printf("Please provide these data:\n");
-    
-    printf("username: ");
-    scanf("%s", req.username);
-
-    printf("service: ");
+    printf("user: ");
+    scanf("%s", req.user);
+    printf("service [invia/salva/stampa]: ");
     scanf("%s", req.service);
+
+    req.pid = getpid();
+
+    // controllo la validità di service
+    if(strcmp(req.service, "invia") != 0 && strcmp(req.service, "salva") != 0 && strcmp(req.service, "stampa") != 0){
+        printf("Invalid service name, please try again\n");
+        exit(1);
+    }
 
     printf("\n");
 
-    // inoltra i dati al server, ottiene chiave, stampa chiave sul terminale
 
-    // crea FIFOCLIENT: server la usa per inviare dati, client per leggerli
+
+    // ===== INVIO LA RICHIESTA AL SERVER ===== //
+
+    // creo il nome per la FIFO nel formato: <pid>FIFOCLIENT
+    char fifoName[15];
+
+    sprintf(fifoName, "%i", req.pid);
+    strcat(fifoName, "FIFOCLIENT");
+
+    // crea FIFOCLIENT
     printf("Creating FIFOCLIENT...\n");
-    int fifo_client = mkfifo("FIFOCLIENT", S_IRUSR | S_IWUSR);	// le flag sono di lettura (per client) e scrittura (per server)
+    int fifo_client = mkfifo(fifoName, S_IRUSR | S_IWUSR);	// le flag sono di lettura (per client) e scrittura (per server)
 
     if (fifo_client == -1){
     	errExit("mkfifo failed");
@@ -64,7 +61,7 @@ int main (int argc, char *argv[]) {
     }	
 
 
-    // scrivo una struct Request su FIFOSERVER 
+    // invio la richiesta su FIFOSERVER 
     struct Request buffer_wr[] = {req};	// ogni istanza di ClientReq può inviare una sola Request alla volta
     if(write(server_fd, buffer_wr, sizeof(buffer_wr)) == -1){
     	errExit("write on FIFOSERVER failed");
@@ -73,9 +70,14 @@ int main (int argc, char *argv[]) {
    	// chiude FIFOSERVER
    	close(server_fd);
 
+
+
+
+    // ===== LETTURA DELLA RISPOSTA ===== //
+
     // apro FIFOCLIENT in lettura
     printf("Reading the Response from Server...\n");
-    int client_fd = open("FIFOCLIENT", O_RDONLY);	// qui il processo si blocca finché server non apre FIFOCLIENT per inviare la chiave!
+    int client_fd = open(fifoName, O_RDONLY);	// qui il processo si blocca finché server non apre FIFOCLIENT per inviare la chiave!
     if(client_fd == -1){
     	errExit("FIFOCLIENT open failed");
     }
@@ -88,12 +90,13 @@ int main (int argc, char *argv[]) {
     // memorizzo la chiave letta da FIFOCLIENT
     int key = buffer_rd[0].key;
 
-    printf("\nKey released from Server: ");
-    printf("%i\n\n", key);
+    printf("\n\nUsername: %s\n", req.user);
+    printf("Service: %s\n", req.service);
+    printf("Key released from Server: %i\n\n", key);
 
     // rimuove FIFOCLIENT
     printf("Removing FIFOCLIENT from file system\n");
-    if(unlink("FIFOCLIENT") == -1){
+    if(unlink(fifoName) == -1){
     	errExit("unlink failed");
     }
 
