@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "../inc/functions.h"
+#include "../inc/client_server_lib.h"
 #include "../inc/errExit.h"
 
 int main (int argc, char *argv[]) {

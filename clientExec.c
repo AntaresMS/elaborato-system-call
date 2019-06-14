@@ -13,7 +13,7 @@
 #include <sys/sem.h>
 #include <sys/shm.h>
 
-#include "../inc/functions.h"
+#include "../inc/exec_lib.h"
 #include "../inc/errExit.h"
 
 

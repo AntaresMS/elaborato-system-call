@@ -13,7 +13,7 @@
 #include <time.h>
 #include <signal.h>
 
-#include "../inc/functions.h"
+#include "../inc/client_server_lib.h"
 #include "../inc/errExit.h"
 
 
